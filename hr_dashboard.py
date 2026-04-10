@@ -530,11 +530,9 @@ def fig_active_trend(df: pd.DataFrame, ref_date: date = None):
         go.Scatter(
             x=x_labels,
             y=counts,
-            mode="lines+markers+text",
+            mode="lines+markers",
             line=dict(color="royalblue", width=2),
             marker=dict(size=7),
-            text=counts,
-            textposition="top center",
             hovertemplate="%{x}: %{y}人<extra></extra>",
         )
     )
@@ -705,9 +703,6 @@ def fig_hire_trend(df: pd.DataFrame, ref_date: date = None):
                 y=y_vals,
                 name=htype,
                 marker_color=colors.get(htype, "gray"),
-                text=[v if v > 0 else "" for v in y_vals],
-                textposition="auto",
-                constraintext="none",
             )
         )
     fig.update_layout(
@@ -716,6 +711,7 @@ def fig_hire_trend(df: pd.DataFrame, ref_date: date = None):
         yaxis_title="採用人数（人）",
         barmode="stack",
         height=380,
+        margin=dict(r=40),
     )
     return fig
 
