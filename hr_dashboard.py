@@ -1010,15 +1010,23 @@ def fig_gender_ratios(df: pd.DataFrame):
 # =============================================================================
 
 
-def _build_forecast_base(df: pd.DataFrame, ref_date: date):
+def _build_forecast_base(df: pd.DataFrame, ref_date: date,
+                         recent_years: int = 5,
+                         override_hire: float = None,
+                         override_nr: float = None):
     """
     退職予測・人員数予測の共通データを計算する
+
+    パラメータ:
+      recent_years  : 平均採用数・離職率の計算に使う直近年数（デフォルト5年）
+      override_hire : ユーザー指定の年間採用数（Noneなら自動計算）
+      override_nr   : ユーザー指定の通常離職率（Noneなら自動計算）
 
     戻り値:
       active       : 在籍者 DataFrame
       ref_fy       : 基準日の年度
-      avg_nr       : 過去の平均通常離職率
-      avg_hire     : 過去の平均採用人数
+      avg_nr       : 通常離職率（直近N年平均 or ユーザー指定）
+      avg_hire     : 年間採用数（直近N年平均 or ユーザー指定）
     """
     if isinstance(ref_date, datetime):
         ref_date = ref_date.date()
@@ -1026,11 +1034,13 @@ def _build_forecast_base(df: pd.DataFrame, ref_date: date):
 
     active = df[df["在籍フラグ"]].copy()
 
-    # 過去の通常離職率の平均を計算
-    # 計算式: 各年度の通常退職者数 ÷ 期首在籍者数 の平均
+    # ── 通常離職率: 直近 recent_years 年の平均 ──────────────────
+    # 計算式: 通常退職者数 ÷ 期首在籍者数 の直近N年平均
     past_fys = sorted([int(y) for y in df["退職年度"].dropna().unique()])
+    # 直近N年に絞る
+    recent_fys = past_fys[-recent_years:] if len(past_fys) >= recent_years else past_fys
     nr_list = []
-    for fy in past_fys:
+    for fy in recent_fys:
         fy_start = pd.Timestamp(date(fy, 4, 1))
         bos = df[
             df["入社年月日"].notna()
@@ -1041,11 +1051,19 @@ def _build_forecast_base(df: pd.DataFrame, ref_date: date):
             n = df[(df["退職年度"] == fy) & (df["退職区分"] == "通常退職")].shape[0]
             nr_list.append(n / bos)
 
-    avg_nr = float(np.mean(nr_list)) if nr_list else 0.05
+    avg_nr = override_nr if override_nr is not None else (
+        float(np.mean(nr_list)) if nr_list else 0.05
+    )
 
-    # 過去の平均採用人数
-    hire_by_fy = df.groupby("入社年度").size()
-    avg_hire = float(hire_by_fy.mean()) if len(hire_by_fy) > 0 else 0.0
+    # ── 年間採用数: 直近 recent_years 年の平均 ──────────────────
+    # 全期間平均ではなく直近N年を使うことで、現在の採用規模を反映する
+    hire_by_fy = df.groupby("入社年度").size().sort_index()
+    # 基準日の年度は年度途中のため除外
+    hire_by_fy = hire_by_fy[hire_by_fy.index < ref_fy]
+    recent_hires = hire_by_fy.tail(recent_years)
+    avg_hire = override_hire if override_hire is not None else (
+        float(recent_hires.mean()) if len(recent_hires) > 0 else 0.0
+    )
 
     return active, ref_fy, avg_nr, avg_hire
 
@@ -1060,7 +1078,10 @@ def _count_mandatory_retirements(active_df: pd.DataFrame, fy: int) -> int:
     return int((active_df["定年退職年度"] == fy).sum())
 
 
-def fig_retirement_forecast(df: pd.DataFrame, ref_date: date):
+def fig_retirement_forecast(df: pd.DataFrame, ref_date: date,
+                             recent_years: int = 5,
+                             override_hire: float = None,
+                             override_nr: float = None):
     """
     ⑫ 退職予測（積み上げ棒グラフ）
 
@@ -1072,7 +1093,8 @@ def fig_retirement_forecast(df: pd.DataFrame, ref_date: date):
     通常退職予測:
       (期首在籍者数 − 定年退職者数) × 過去平均通常離職率
     """
-    active, ref_fy, avg_nr, _ = _build_forecast_base(df, ref_date)
+    active, ref_fy, avg_nr, _ = _build_forecast_base(
+        df, ref_date, recent_years, override_hire, override_nr)
     if active.empty:
         return go.Figure().update_layout(title="⑫ 退職予測")
 
@@ -1122,7 +1144,10 @@ def fig_retirement_forecast(df: pd.DataFrame, ref_date: date):
     return fig
 
 
-def fig_headcount_forecast(df: pd.DataFrame, ref_date: date):
+def fig_headcount_forecast(df: pd.DataFrame, ref_date: date,
+                            recent_years: int = 5,
+                            override_hire: float = None,
+                            override_nr: float = None):
     """
     ⑬ 人員数予測（折れ線グラフ）
 
@@ -1135,7 +1160,8 @@ def fig_headcount_forecast(df: pd.DataFrame, ref_date: date):
       平均採用数  : 過去の年度別採用人数の平均
       通常離職率  : 過去の通常離職率の平均
     """
-    active, ref_fy, avg_nr, avg_hire = _build_forecast_base(df, ref_date)
+    active, ref_fy, avg_nr, avg_hire = _build_forecast_base(
+        df, ref_date, recent_years, override_hire, override_nr)
     if active.empty:
         return go.Figure().update_layout(title="⑬ 人員数予測")
 
@@ -1333,6 +1359,36 @@ def main():
         )
 
         st.markdown("---")
+        # ── 将来予測パラメーター ─────────────────────────────────
+        st.subheader("将来予測の設定")
+        st.caption("採用・離職の実績ベース期間と想定採用数を調整できます")
+
+        # 直近何年の実績を使うか
+        recent_years = st.slider(
+            "実績参照期間（直近N年）",
+            min_value=1, max_value=10, value=5,
+            help="採用数・離職率の平均を計算する直近年数。大きいほど長期トレンドを反映"
+        )
+
+        # 採用数の実績計算値を表示
+        hire_by_fy = df_all.groupby("入社年度").size().sort_index()
+        ref_fy_now = get_fiscal_year(reference_date)
+        hire_excl = hire_by_fy[hire_by_fy.index < ref_fy_now]
+        calc_avg_hire = float(hire_excl.tail(recent_years).mean()) if len(hire_excl) > 0 else 0
+        st.caption(f"直近{recent_years}年の平均採用数: **{calc_avg_hire:.0f}人/年**")
+
+        # 採用数の手動上書き（任意）
+        use_custom_hire = st.checkbox("採用数を手動で指定する")
+        override_hire = None
+        if use_custom_hire:
+            override_hire = float(st.number_input(
+                "年間想定採用数（人）",
+                min_value=0, max_value=200,
+                value=int(round(calc_avg_hire)),
+                step=1
+            ))
+
+        st.markdown("---")
         st.caption(f"総レコード数: {len(df_all):,} 件")
 
     # フィルター適用
@@ -1447,9 +1503,17 @@ def main():
     st.caption(f"定年年齢: {RETIREMENT_AGE}歳 ／ 予測期間: 基準日から5年間")
     col12, col13 = st.columns(2)
     with col12:
-        st.plotly_chart(fig_retirement_forecast(df, reference_date), use_container_width=True)
+        st.plotly_chart(
+            fig_retirement_forecast(df, reference_date,
+                                    recent_years=recent_years,
+                                    override_hire=override_hire),
+            use_container_width=True)
     with col13:
-        st.plotly_chart(fig_headcount_forecast(df, reference_date), use_container_width=True)
+        st.plotly_chart(
+            fig_headcount_forecast(df, reference_date,
+                                   recent_years=recent_years,
+                                   override_hire=override_hire),
+            use_container_width=True)
 
     # ── データプレビュー ──────────────────────────────────────
     with st.expander("🔍 データプレビュー（フィルター適用後・先頭100件）"):
