@@ -890,7 +890,11 @@ def fig_job_turnover(df: pd.DataFrame):
     if "職種分類" not in df.columns:
         return go.Figure().update_layout(title="⑩ 職種別離職率")
 
-    jobs = sorted(df["職種分類"].dropna().unique())
+    # 「未定」を末尾に固定してソート
+    _all_jobs = df["職種分類"].dropna().unique().tolist()
+    jobs = sorted([j for j in _all_jobs if j != "未定"])
+    if "未定" in _all_jobs:
+        jobs.append("未定")
     n_rates, nat_rates = [], []
 
     for jt in jobs:
@@ -1103,13 +1107,15 @@ def fig_retirement_forecast(df: pd.DataFrame, ref_date: date):
         xaxis_title="年度",
         yaxis_title="予測退職者数（人）",
         barmode="stack",
-        height=400,
+        height=420,
+        margin=dict(b=60),
         annotations=[
             dict(
-                x=0.01, y=0.98, xref="paper", yref="paper",
-                text=f"過去平均通常離職率: {round(avg_nr*100, 1)}%",
+                x=0.5, y=-0.18, xref="paper", yref="paper",
+                text=f"※ 過去平均通常離職率: {round(avg_nr*100, 1)}%",
                 showarrow=False,
-                bgcolor="white", bordercolor="gray", borderwidth=1,
+                font=dict(size=11, color="gray"),
+                xanchor="center",
             )
         ],
     )
@@ -1171,16 +1177,18 @@ def fig_headcount_forecast(df: pd.DataFrame, ref_date: date):
         title=f"⑬ 人員数予測（{ref_fy}〜{ref_fy+5}年度）",
         xaxis_title="年度",
         yaxis_title="人員数（人）",
-        height=400,
+        height=420,
+        margin=dict(b=60),
         annotations=[
             dict(
-                x=0.01, y=0.98, xref="paper", yref="paper",
+                x=0.5, y=-0.18, xref="paper", yref="paper",
                 text=(
-                    f"平均採用数: {round(avg_hire)}人/年  "
+                    f"※ 平均採用数: {round(avg_hire)}人/年　"
                     f"通常離職率: {round(avg_nr*100, 1)}%"
                 ),
                 showarrow=False,
-                bgcolor="white", bordercolor="gray", borderwidth=1,
+                font=dict(size=11, color="gray"),
+                xanchor="center",
             )
         ],
     )
