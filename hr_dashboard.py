@@ -1453,14 +1453,17 @@ def main():
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("在籍者数", f"{kpis['在籍者数']:,}人")
     c2.metric("総離職率", f"{kpis['総離職率']}%")
+    c2.caption("業界平均 12.8%（令和5年・情報通信業）")
     c3.metric("通常離職率", f"{kpis['通常離職率']}%")
     c4.metric("自然退職率", f"{kpis['自然退職率']}%")
     c5.metric("平均勤続年数", f"{kpis['平均勤続年数']}年")
+    c5.caption("業界平均 12.9年（情報通信業）")
 
     # 2行目 KPI（早期離職率）
     c6, c7, c8, _ = st.columns(4)
     c6.metric("1年以内早期離職率", f"{kpis['早期離職_1年']}%")
     c7.metric("3年以内早期離職率", f"{kpis['早期離職_3年']}%")
+    c7.caption("参考: 全産業大卒 約32.3%（令和2年卒・厚労省）")
     c8.metric("5年以内早期離職率", f"{kpis['早期離職_5年']}%")
 
     st.markdown("---")
