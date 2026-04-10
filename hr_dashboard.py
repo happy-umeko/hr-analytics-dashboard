@@ -648,12 +648,21 @@ def fig_turnover_trend(df: pd.DataFrame):
     return fig
 
 
-def fig_hire_trend(df: pd.DataFrame):
+def fig_hire_trend(df: pd.DataFrame, ref_date: date = None):
     """
     ④ 採用人数推移（棒グラフ）
 
     年度ごとの採用人数（新卒・中途の積み上げ）を表示
+    基準日以降の入社者は除外する（基準日時点で確定している採用のみ表示）
     """
+    if df.empty:
+        return go.Figure().update_layout(title="④ 採用人数推移")
+
+    # 基準日以降の入社者を除外
+    if ref_date is not None:
+        ref_ts = pd.Timestamp(ref_date)
+        df = df[df["入社年月日"].notna() & (df["入社年月日"] <= ref_ts)]
+
     if df.empty:
         return go.Figure().update_layout(title="④ 採用人数推移")
 
@@ -1465,7 +1474,7 @@ def main():
     with col3:
         st.plotly_chart(fig_turnover_trend(df), use_container_width=True)
     with col4:
-        st.plotly_chart(fig_hire_trend(df), use_container_width=True)
+        st.plotly_chart(fig_hire_trend(df, reference_date), use_container_width=True)
 
     # ── 定着率コホート（新卒 / 中途） ────────────────────────────
     st.subheader("定着率（コホート分析）")
