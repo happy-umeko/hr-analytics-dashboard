@@ -514,7 +514,11 @@ def fig_active_trend(df: pd.DataFrame, ref_date: date = None):
                 & (df["入社年月日"] <= ref_ts)
                 & (df["退職年月日"].isna() | (df["退職年月日"] > ref_ts))
             ].shape[0]
-            x_labels.append(f"{fy}年度({ref_ts.strftime('%m/%d')}時点)")
+            # 3/31（年度末と一致）なら日付サフィックスは不要
+            if ref_ts.month == 3 and ref_ts.day == 31:
+                x_labels.append(f"{fy}年度")
+            else:
+                x_labels.append(f"{fy}年度({ref_ts.strftime('%m/%d')}時点)")
             counts.append(n)
             break
         fy_end = full_end
