@@ -897,11 +897,10 @@ def fig_job_turnover(df: pd.DataFrame):
     if "職種分類" not in df.columns:
         return go.Figure().update_layout(title="⑩ 職種別離職率")
 
-    # 「未定」を末尾に固定してソート
+    # 職種の表示順を固定（未定は除外）
+    JOB_ORDER = ["営業", "SE", "社会基盤", "ITAD", "EIT", "コーポレート"]
     _all_jobs = df["職種分類"].dropna().unique().tolist()
-    jobs = sorted([j for j in _all_jobs if j != "未定"])
-    if "未定" in _all_jobs:
-        jobs.append("未定")
+    jobs = [j for j in JOB_ORDER if j in _all_jobs]
     n_rates, nat_rates = [], []
 
     for jt in jobs:
@@ -1343,11 +1342,10 @@ def main():
         hire_opts = ["全て"] + hire_list
         sel_hire = st.selectbox("採用区分", hire_opts)
 
-        # フィルター4: 職種区分（「未定」を末尾に固定）
+        # フィルター4: 職種区分（表示順固定・未定除外）
+        JOB_ORDER = ["営業", "SE", "社会基盤", "ITAD", "EIT", "コーポレート"]
         _job_all = df_all["職種分類"].dropna().unique().tolist()
-        job_list = sorted([j for j in _job_all if j != "未定"])
-        if "未定" in _job_all:
-            job_list.append("未定")
+        job_list = [j for j in JOB_ORDER if j in _job_all]
         job_opts = ["全て"] + job_list
         sel_job = st.selectbox("職種区分", job_opts)
 
