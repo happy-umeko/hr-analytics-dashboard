@@ -485,11 +485,13 @@ def build_yearly_summary(df: pd.DataFrame):
 # =============================================================================
 
 
-def fig_active_trend(df: pd.DataFrame):
+def fig_active_trend(df: pd.DataFrame, ref_date: date = None):
     """
     ① 在籍者数推移（折れ線グラフ）
 
     各年度末（翌年 3/31）時点の在籍者数を折れ線で表示
+    基準日が指定された場合は、基準日を超える年度末は表示しない。
+    現在年度（基準日が年度途中の場合）は基準日時点の在籍者数を表示。
     計算式: 入社日 <= 年度末 かつ (退職日なし or 退職日 > 年度末) の件数
     """
     fy_set = set()
@@ -498,24 +500,41 @@ def fig_active_trend(df: pd.DataFrame):
     if not fy_set:
         return go.Figure().update_layout(title="① 在籍者数推移")
 
+    ref_ts = pd.Timestamp(ref_date) if ref_date is not None else None
+
     all_fy = sorted(fy_set)
+    x_labels = []
     counts = []
     for fy in all_fy:
-        fy_end = pd.Timestamp(date(fy + 1, 3, 31))
+        full_end = pd.Timestamp(date(fy + 1, 3, 31))
+        if ref_ts is not None and full_end > ref_ts:
+            # 基準日が年度途中: 基準日時点の値を表示してループ終了
+            n = df[
+                df["入社年月日"].notna()
+                & (df["入社年月日"] <= ref_ts)
+                & (df["退職年月日"].isna() | (df["退職年月日"] > ref_ts))
+            ].shape[0]
+            x_labels.append(f"{fy}年度({ref_ts.strftime('%m/%d')}時点)")
+            counts.append(n)
+            break
+        fy_end = full_end
         n = df[
             df["入社年月日"].notna()
             & (df["入社年月日"] <= fy_end)
             & (df["退職年月日"].isna() | (df["退職年月日"] > fy_end))
         ].shape[0]
+        x_labels.append(f"{fy}年度")
         counts.append(n)
 
     fig = go.Figure(
         go.Scatter(
-            x=[f"{y}年度" for y in all_fy],
+            x=x_labels,
             y=counts,
-            mode="lines+markers",
+            mode="lines+markers+text",
             line=dict(color="royalblue", width=2),
             marker=dict(size=7),
+            text=counts,
+            textposition="top center",
             hovertemplate="%{x}: %{y}人<extra></extra>",
         )
     )
@@ -686,8 +705,9 @@ def fig_hire_trend(df: pd.DataFrame, ref_date: date = None):
                 y=y_vals,
                 name=htype,
                 marker_color=colors.get(htype, "gray"),
-                text=y_vals,
-                textposition="inside",
+                text=[v if v > 0 else "" for v in y_vals],
+                textposition="auto",
+                constraintext="none",
             )
         )
     fig.update_layout(
@@ -1464,7 +1484,7 @@ def main():
     st.subheader("在籍者数の推移と年代構成")
     col1, col2 = st.columns(2)
     with col1:
-        st.plotly_chart(fig_active_trend(df), use_container_width=True)
+        st.plotly_chart(fig_active_trend(df, reference_date), use_container_width=True)
     with col2:
         st.plotly_chart(fig_population_pyramid(df), use_container_width=True)
 
