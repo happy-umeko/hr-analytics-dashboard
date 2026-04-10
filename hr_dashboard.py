@@ -1108,10 +1108,10 @@ def fig_retirement_forecast(df: pd.DataFrame, ref_date: date):
         yaxis_title="予測退職者数（人）",
         barmode="stack",
         height=420,
-        margin=dict(b=60),
+        margin=dict(t=80),
         annotations=[
             dict(
-                x=0.5, y=-0.18, xref="paper", yref="paper",
+                x=0.5, y=1.12, xref="paper", yref="paper",
                 text=f"※ 過去平均通常離職率: {round(avg_nr*100, 1)}%",
                 showarrow=False,
                 font=dict(size=11, color="gray"),
@@ -1178,10 +1178,10 @@ def fig_headcount_forecast(df: pd.DataFrame, ref_date: date):
         xaxis_title="年度",
         yaxis_title="人員数（人）",
         height=420,
-        margin=dict(b=60),
+        margin=dict(t=80),
         annotations=[
             dict(
-                x=0.5, y=-0.18, xref="paper", yref="paper",
+                x=0.5, y=1.12, xref="paper", yref="paper",
                 text=(
                     f"※ 平均採用数: {round(avg_hire)}人/年　"
                     f"通常離職率: {round(avg_nr*100, 1)}%"
